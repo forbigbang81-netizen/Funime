@@ -1,1 +1,24 @@
-test
+import HeroBanner from "@/components/HeroBanner";
+import ContinueWatching from "@/components/ContinueWatching";
+
+export default function Home() {
+  return (
+    <main className="bg-[#080510] min-h-screen text-white">
+      <HeroBanner />
+
+      <ContinueWatching />
+
+      <section className="px-6 mt-10">
+        <h2 className="text-2xl font-bold">
+          Seasonal Hype
+        </h2>
+      </section>
+
+      <section className="px-6 mt-10">
+        <h2 className="text-2xl font-bold">
+          Shonen Essentials
+        </h2>
+      </section>
+    </main>
+  );
+}
