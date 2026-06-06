@@ -1,24 +1,15 @@
-import HeroBanner from "@/components/HeroBanner";
-import ContinueWatching from "@/components/ContinueWatching";
-
-export default function Home() {
+export default function HomePage() {
   return (
-    <main className="bg-[#080510] min-h-screen text-white">
-      <HeroBanner />
+    <main className="bg-funime-dark min-h-screen text-white">
+      <div className="p-8">
+        <h1 className="text-5xl font-bold text-funime-purple">
+          FUNIME
+        </h1>
 
-      <ContinueWatching />
-
-      <section className="px-6 mt-10">
-        <h2 className="text-2xl font-bold">
-          Seasonal Hype
-        </h2>
-      </section>
-
-      <section className="px-6 mt-10">
-        <h2 className="text-2xl font-bold">
-          Shonen Essentials
-        </h2>
-      </section>
+        <p className="mt-4 text-gray-400">
+          Anime Streaming Reimagined
+        </p>
+      </div>
     </main>
   );
 }
