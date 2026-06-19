@@ -1,35 +1,22 @@
 /**
- * app.js — Application entry point and initialization
+ * app.js — Entry point
  */
 const Funime = window.Funime || {};
 
 (function () {
-
-    /**
-     * Render the home view on load
-     */
+    // Render the home view
     Funime.Router.renderHome();
 
-    /**
-     * Pre-discover a Consumet instance in the background
-     */
+    // Discover Consumet instance in background
     Funime.API.findConsumetInstance();
 
-    /**
-     * Navbar scroll effect
-     */
-    let lastScroll = 0;
+    // Navbar scroll effect
     window.addEventListener('scroll', () => {
         const nav = document.getElementById('navbar');
-        const st = window.scrollY;
-        if (st > 80) {
-            nav.style.borderBottomColor = 'rgba(124,58,237,0.2)';
-        } else {
-            nav.style.borderBottomColor = 'rgba(124,58,237,0.05)';
-        }
-        lastScroll = st;
+        nav.style.borderBottomColor = window.scrollY > 80
+            ? 'rgba(124,58,237,0.2)'
+            : 'rgba(124,58,237,0.05)';
     });
-
 })();
 
 window.Funime = Funime;
