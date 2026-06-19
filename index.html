@@ -1,1 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funime - Stream Anime Free</title>
 
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    bg: '#06000e',
+                    surface: '#0d001a',
+                    card: '#150028',
+                    'card-hover': '#1f0040',
+                    accent: '#7c3aed',
+                    'accent-light': '#a78bfa',
+                    'accent-dark': '#4c1d95',
+                    pink: '#e84393',
+                    muted: '#6b7280'
+                },
+                fontFamily: {
+                    display: ['Outfit', 'sans-serif'],
+                    body: ['Space Grotesk', 'sans-serif']
+                }
+            }
+        }
+    }
+    </script>
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 nav-blur bg-bg/80 border-b border-accent/10 transition-all duration-300">
+        <div class="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-6">
+                <button onclick="Funime.Router.navigate('home')" class="flex items-center gap-2 group">
+                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-pink flex items-center justify-center">
+                        <i class="fa-solid fa-play text-white text-sm"></i>
+                    </div>
+                    <span class="font-display font-black text-2xl tracking-tight">Fun<span class="text-accent-light">ime</span></span>
+                </button>
+                <div class="hidden md:flex items-center gap-5 text-sm font-medium">
+                    <button onclick="Funime.Router.navigate('home')" class="text-white/80 hover:text-accent-light transition-colors">Home</button>
+                    <button onclick="Funime.Router.loadGenre(1)" class="text-white/80 hover:text-accent-light transition-colors">Action</button>
+                    <button onclick="Funime.Router.loadGenre(22)" class="text-white/80 hover:text-accent-light transition-colors">Romance</button>
+                    <button onclick="Funime.Router.loadGenre(10)" class="text-white/80 hover:text-accent-light transition-colors">Fantasy</button>
+                    <button onclick="Funime.Router.loadGenre(4)" class="text-white/80 hover:text-accent-light transition-colors">Comedy</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <input id="searchInput" type="search" placeholder="Search anime..."
+                        class="bg-surface border border-accent/20 rounded-full px-4 py-2 text-sm w-44 sm:w-64 focus:outline-none focus:border-accent/60 focus:w-52 sm:focus:w-72 transition-all placeholder:text-muted"
+                        onkeydown="if(event.key==='Enter')Funime.Router.doSearch()">
+                    <button onclick="Funime.Router.doSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-accent-light transition-colors">
+                        <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="mainContent" class="pt-16 min-h-screen"></main>
+
+    <!-- Video Player Overlay -->
+    <div id="playerOverlay" class="fixed inset-0 z-[100] bg-black hidden">
+        <div id="playerWrapper" class="relative w-full h-full flex">
+
+            <!-- Video Element -->
+            <video id="videoPlayer" class="w-full h-full object-contain bg-black" playsinline></video>
+
+            <!-- Loading Spinner -->
+            <div id="playerLoader" class="absolute inset-0 flex items-center justify-center bg-black/60 hidden">
+                <div class="flex flex-col items-center gap-3">
+                    <i class="fa-solid fa-circle-notch fa-spin text-accent text-4xl"></i>
+                    <span class="text-sm text-white/70">Loading stream...</span>
+                </div>
+            </div>
+
+            <!-- Center Play Button -->
+            <button id="centerPlayBtn" onclick="Funime.Player.togglePlay()" class="absolute inset-0 flex items-center justify-center z-10 hidden">
+                <div class="w-20 h-20 rounded-full bg-accent/80 flex items-center justify-center backdrop-blur-sm hover:bg-accent transition-colors">
+                    <i class="fa-solid fa-play text-white text-2xl ml-1"></i>
+                </div>
+            </button>
+
+            <!-- Skip Intro Button -->
+            <button id="skipIntroBtn" onclick="Funime.Player.skipIntro()" class="absolute bottom-24 right-6 z-20 bg-accent/80 hover:bg-accent text-white px-5 py-2.5 rounded text-sm font-semibold backdrop-blur-sm transition-all hidden">
+                Skip Intro <i class="fa-solid fa-forward ml-1"></i>
+            </button>
+
+            <!-- Player Controls Bar -->
+            <div class="player-controls-wrap absolute inset-x-0 bottom-0 z-20">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
+                <div class="relative px-4 sm:px-6 pb-4 pt-16">
+                    <!-- Progress Bar -->
+                    <div class="mb-3 flex items-center gap-3">
+                        <span id="currentTime" class="text-xs text-white/80 font-mono w-12 text-right">0:00</span>
+                        <input id="progressBar" type="range" min="0" max="100" value="0" step="0.1"
+                            class="progress-bar flex-1" oninput="Funime.Player.seekTo(this.value)">
+                        <span id="duration" class="text-xs text-white/80 font-mono w-12">0:00</span>
+                    </div>
+                    <!-- Controls Row -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3 sm:gap-4">
+                            <button onclick="Funime.Player.exitPlayer()" class="text-white/80 hover:text-white transition-colors" title="Back">
+                                <i class="fa-solid fa-arrow-left text-lg"></i>
+                            </button>
+                            <button id="prevEpBtn" onclick="Funime.Player.prevEpisode()" class="text-white/80 hover:text-white transition-colors" title="Previous Episode">
+                                <i class="fa-solid fa-backward-step text-lg"></i>
+                            </button>
+                            <button id="playPauseBtn" onclick="Funime.Player.togglePlay()" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Play/Pause">
+                                <i id="playPauseIcon" class="fa-solid fa-play text-white text-sm ml-0.5"></i>
+                            </button>
+                            <button id="nextEpBtn" onclick="Funime.Player.nextEpisode()" class="text-white/80 hover:text-white transition-colors" title="Next Episode">
+                                <i class="fa-solid fa-forward-step text-lg"></i>
+                            </button>
+                            <div class="hidden sm:flex items-center gap-2">
+                                <button id="volBtn" onclick="Funime.Player.toggleMute()" class="text-white/80 hover:text-white transition-colors">
+                                    <i id="volIcon" class="fa-solid fa-volume-high text-lg"></i>
+                                </button>
+                                <input id="volSlider" type="range" min="0" max="100" value="80"
+                                    class="vol-slider" oninput="Funime.Player.setVolume(this.value/100)">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 sm:gap-4">
+                            <span id="playerEpTitle" class="hidden sm:block text-sm text-white/70 max-w-[200px] truncate"></span>
+                            <select id="qualitySelect" onchange="Funime.Player.changeQuality(this.value)" class="bg-white/10 text-white text-xs rounded px-2 py-1 border border-white/10 focus:outline-none cursor-pointer"></select>
+                            <button onclick="Funime.Player.toggleEpisodePanel()" class="text-white/80 hover:text-white transition-colors" title="Episodes">
+                                <i class="fa-solid fa-list text-lg"></i>
+                            </button>
+                            <button onclick="Funime.Player.toggleFullscreen()" class="text-white/80 hover:text-white transition-colors" title="Fullscreen">
+                                <i id="fsIcon" class="fa-solid fa-expand text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Bar inside Player -->
+            <div class="absolute top-0 inset-x-0 z-20 bg-gradient-to-b from-black/70 to-transparent px-4 sm:px-6 py-4 flex items-center justify-between">
+                <button onclick="Funime.Player.exitPlayer()" class="flex items-center gap-2 text-white/90 hover:text-white transition-colors">
+                    <i class="fa-solid fa-chevron-left"></i>
+                    <span class="text-sm font-medium">Back</span>
+                </button>
+                <h3 id="playerTitle" class="font-display font-bold text-lg truncate max-w-md"></h3>
+                <div class="w-16"></div>
+            </div>
+
+            <!-- Episode Panel Sidebar -->
+            <div id="episodePanel" class="absolute top-0 right-0 bottom-0 w-80 bg-surface/95 backdrop-blur-xl border-l border-accent/20 z-30 transform translate-x-full transition-transform duration-300 overflow-y-auto hidden">
+                <div class="sticky top-0 bg-surface/95 backdrop-blur-xl p-4 border-b border-accent/10 flex items-center justify-between z-10">
+                    <h3 class="font-display font-bold text-lg">Episodes</h3>
+                    <button onclick="Funime.Player.toggleEpisodePanel()" class="text-white/60 hover:text-white transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div id="episodeList" class="p-2"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-20 right-4 z-[200] flex flex-col gap-2"></div>
+
+    <!-- App Scripts (order matters) -->
+    <script src="js/api.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
