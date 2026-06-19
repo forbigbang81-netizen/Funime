@@ -5,17 +5,8 @@ const Funime = window.Funime || {};
 
 Funime.Router = (() => {
 
-    /**
-     * Application state
-     */
     const state = {
         view: 'home',
-        topAnime: [],
-        seasonalAnime: [],
-        actionAnime: [],
-        romanceAnime: [],
-        fantasyAnime: [],
-        searchResults: [],
         currentAnimeDetail: null,
         gogoAnime: null,
         episodes: [],
@@ -24,24 +15,12 @@ Funime.Router = (() => {
         navStack: []
     };
 
-    /**
-     * Helper: delay
-     */
     const delay = ms => new Promise(r => setTimeout(r, ms));
 
-    /**
-     * Helper: get main content element
-     */
     function main() { return document.getElementById('mainContent'); }
 
-    /**
-     * Expose state to other modules
-     */
     function getState() { return state; }
 
-    /**
-     * Show a toast notification
-     */
     function showToast(msg, type = 'info') {
         const colors = { info: 'bg-accent', error: 'bg-red-600', success: 'bg-green-600' };
         const t = document.createElement('div');
@@ -51,9 +30,6 @@ Funime.Router = (() => {
         setTimeout(() => t.remove(), 3200);
     }
 
-    /**
-     * Navigate to a view
-     */
     function navigate(view) {
         state.view = view;
         state.navStack = [];
@@ -65,6 +41,7 @@ Funime.Router = (() => {
     // ==========================================
 
     function renderHome() {
+        const C = Funime.Components;
         main().innerHTML = `
         <!-- Hero Section -->
         <section id="heroSection" class="relative h-[70vh] sm:h-[80vh] overflow-hidden">
@@ -72,13 +49,13 @@ Funime.Router = (() => {
             <div class="hero-gradient absolute inset-0 z-10"></div>
             <div class="relative z-20 h-full flex items-center">
                 <div class="max-w-[1400px] mx-auto px-4 sm:px-6 w-full">
-                    <div id="heroContent" class="max-w-xl"></div>
+                    <div id="heroContent" class="max-w-xl flex items-center justify-center h-40">
+                        <i class="fa-solid fa-circle-notch fa-spin text-accent text-3xl"></i>
+                    </div>
                 </div>
             </div>
         </section>
-        <!-- Continue Watching -->
         <div id="continueRow"></div>
-        <!-- Anime Rows -->
         <div id="animeRows" class="py-8"></div>`;
 
         loadHomeData();
@@ -86,49 +63,46 @@ Funime.Router = (() => {
 
     async function loadHomeData() {
         const C = Funime.Components;
+        const rowsEl = document.getElementById('animeRows');
 
-        // Load hero
-        const top = await Funime.API.jikanGet('/top/anime?filter=bypopularity&limit=10&sfw=true');
-        state.topAnime = top;
+        // ---- Hero ----
+        const top = await Funime.API.getTopAnime(15);
         if (top.length) {
             const featured = top[Math.floor(Math.random() * Math.min(5, top.length))];
             const heroBg = document.getElementById('heroBg');
             heroBg.innerHTML = `<img src="${Funime.API.getImage(featured)}" class="w-full h-full object-cover object-center" alt="">`;
             document.getElementById('heroContent').innerHTML = C.heroHTML(featured);
+        } else {
+            document.getElementById('heroContent').innerHTML = `<p class="text-white/60">Could not load featured anime.</p>`;
         }
 
-        // Trending row
-        const rowsEl = document.getElementById('animeRows');
+        // ---- Trending Row ----
         rowsEl.innerHTML = C.rowHTML('Trending Now', 'rowTrend', top);
 
-        // Seasonal row
+        // ---- This Season ----
         rowsEl.innerHTML += C.rowHTML('This Season', 'rowSeason', []);
-        const seasonal = await Funime.API.jikanGet('/seasons/now?limit=20&sfw=true');
-        state.seasonalAnime = seasonal;
+        const seasonal = await Funime.API.getSeasonalAnime(20);
         document.getElementById('rowSeason').innerHTML = seasonal.map(C.animeCardHTML).join('');
 
-        // Action row
+        // ---- Action ----
         await delay(350);
         rowsEl.innerHTML += C.rowHTML('Action', 'rowAction', []);
-        const action = await Funime.API.jikanGet('/top/anime?genres=1&limit=20&sfw=true');
-        state.actionAnime = action;
+        const action = await Funime.API.getAnimeByGenre(1, 20);
         document.getElementById('rowAction').innerHTML = action.map(C.animeCardHTML).join('');
 
-        // Romance row
+        // ---- Romance ----
         await delay(350);
         rowsEl.innerHTML += C.rowHTML('Romance', 'rowRomance', []);
-        const romance = await Funime.API.jikanGet('/top/anime?genres=22&limit=20&sfw=true');
-        state.romanceAnime = romance;
+        const romance = await Funime.API.getAnimeByGenre(22, 20);
         document.getElementById('rowRomance').innerHTML = romance.map(C.animeCardHTML).join('');
 
-        // Fantasy row
+        // ---- Fantasy ----
         await delay(350);
         rowsEl.innerHTML += C.rowHTML('Fantasy', 'rowFantasy', []);
-        const fantasy = await Funime.API.jikanGet('/top/anime?genres=10&limit=20&sfw=true');
-        state.fantasyAnime = fantasy;
+        const fantasy = await Funime.API.getAnimeByGenre(10, 20);
         document.getElementById('rowFantasy').innerHTML = fantasy.map(C.animeCardHTML).join('');
 
-        // Continue watching
+        // ---- Continue Watching ----
         renderContinueWatching();
     }
 
@@ -169,8 +143,7 @@ Funime.Router = (() => {
             </div>
         </div>`;
 
-        const results = await Funime.API.jikanGet(`/anime?q=${encodeURIComponent(q)}&limit=24&sfw=true`);
-        state.searchResults = results;
+        const results = await Funime.API.searchAnime(q, 24);
 
         const grid = document.getElementById('searchGrid');
         grid.innerHTML = results.length
@@ -197,7 +170,7 @@ Funime.Router = (() => {
             </div>
         </div>`;
 
-        const results = await Funime.API.jikanGet(`/top/anime?genres=${genreId}&limit=24&sfw=true`);
+        const results = await Funime.API.getAnimeByGenre(genreId, 24);
         document.getElementById('genreGrid').innerHTML = results.map(C.animeCardHTML).join('');
     }
 
@@ -215,44 +188,58 @@ Funime.Router = (() => {
             <i class="fa-solid fa-circle-notch fa-spin text-accent text-4xl"></i>
         </div>`;
 
-        const anime = await Funime.API.jikanGet(`/anime/${malId}/full`);
-        if (!anime || !anime.mal_id) {
+        const anime = await Funime.API.getAnimeDetail(malId);
+        if (!anime) {
             main().innerHTML = '<p class="text-center py-20 text-muted">Anime not found.</p>';
             return;
         }
+
         state.currentAnimeDetail = anime;
         state.episodes = [];
         state.currentEpIndex = -1;
 
-        // Render detail page
+        // Render detail page immediately
         main().innerHTML = C.detailHTML(anime);
 
-        // Try to load episodes from Gogoanime
+        // Try to load episodes from Gogoanime in the background
         const title = anime.title_english || anime.title;
+        const epContainer = document.getElementById('epContainer');
+
+        // Show loading state
+        epContainer.innerHTML = `
+        <div class="flex items-center gap-3 py-4">
+            <i class="fa-solid fa-circle-notch fa-spin text-accent"></i>
+            <span class="text-sm text-white/60">Searching streaming sources for "${title}"...</span>
+        </div>`;
+
         const gogoResult = await Funime.API.searchGogoAnime(title);
 
         if (gogoResult) {
             state.gogoAnime = gogoResult;
+            epContainer.innerHTML = `
+            <div class="flex items-center gap-3 py-4">
+                <i class="fa-solid fa-circle-notch fa-spin text-accent"></i>
+                <span class="text-sm text-white/60">Found! Loading episode list...</span>
+            </div>`;
+
             const episodes = await Funime.API.getEpisodes(gogoResult.id);
             state.episodes = episodes;
 
-            const epContainer = document.getElementById('epContainer');
-            if (epContainer) {
-                epContainer.innerHTML = episodes.length
-                    ? C.episodeGridHTML(episodes)
-                    : '<p class="text-muted py-4">No episodes found on streaming source.</p>';
+            if (episodes.length) {
+                epContainer.innerHTML = C.episodeGridHTML(episodes);
+                showToast(`${episodes.length} episodes found!`, 'success');
+            } else {
+                epContainer.innerHTML = '<p class="text-muted py-4">No episodes found on streaming source.</p>';
             }
         } else {
-            const epContainer = document.getElementById('epContainer');
-            if (epContainer) {
-                epContainer.innerHTML = '<p class="text-red-400 py-4">Streaming source unavailable. Try again later.</p>';
-            }
+            epContainer.innerHTML = `
+            <div class="py-4">
+                <p class="text-red-400 mb-2">Streaming source unavailable for this title.</p>
+                <p class="text-white/40 text-sm">The Consumet API might be down, or this anime isn't on Gogoanime. Try again later.</p>
+            </div>`;
         }
     }
 
-    /**
-     * Play the first available episode
-     */
     function playFirstEpisode() {
         if (state.episodes.length) {
             Funime.Player.playEpisode(0);
