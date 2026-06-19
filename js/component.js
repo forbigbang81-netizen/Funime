@@ -1,13 +1,10 @@
 /**
- * components.js — UI rendering functions (cards, rows, hero, detail, etc.)
+ * components.js — UI rendering functions
  */
 const Funime = window.Funime || {};
 
 Funime.Components = (() => {
 
-    /**
-     * Generate HTML for a single anime card
-     */
     function animeCardHTML(anime) {
         const score = anime.score ? anime.score.toFixed(1) : 'N/A';
         const eps = anime.episodes ? `${anime.episodes} Ep` : '';
@@ -33,18 +30,12 @@ Funime.Components = (() => {
         </div>`;
     }
 
-    /**
-     * Generate skeleton placeholder cards
-     */
     function skeletonCards(n = 8) {
         return Array(n).fill(
             '<div class="anime-card"><div class="skeleton w-full" style="height:260px"></div></div>'
         ).join('');
     }
 
-    /**
-     * Generate a horizontal scroll row section
-     */
     function rowHTML(title, id, data) {
         const cards = data.length
             ? data.map(animeCardHTML).join('')
@@ -71,25 +62,18 @@ Funime.Components = (() => {
         </section>`;
     }
 
-    /**
-     * Scroll a row left or right
-     */
     function scrollRow(id, dir) {
         const el = document.getElementById(id);
         if (el) el.scrollBy({ left: dir * 600, behavior: 'smooth' });
     }
 
-    /**
-     * Render the hero section for a featured anime
-     */
     function heroHTML(anime) {
         if (!anime) return '';
         const title = anime.title_english || anime.title;
         const score = anime.score?.toFixed(1) || 'N/A';
         const year = anime.year || anime.aired?.prop?.from?.year || '';
-        const genres = (anime.genres || []).map(g => g.name).slice(0, 4);
-        const syn = (anime.synopsis || '').substring(0, 200)
-            + (anime.synopsis?.length > 200 ? '...' : '');
+        const genres = (anime.genres || []).map(g => typeof g === 'string' ? g : g.name).slice(0, 4);
+        const syn = (anime.synopsis || '').substring(0, 200) + (anime.synopsis?.length > 200 ? '...' : '');
         const img = Funime.API.getImage(anime);
 
         return `
@@ -117,9 +101,6 @@ Funime.Components = (() => {
         </div>`;
     }
 
-    /**
-     * Render the detail page for a specific anime
-     */
     function detailHTML(anime) {
         const title = anime.title_english || anime.title;
         const score = anime.score?.toFixed(1) || 'N/A';
@@ -128,19 +109,17 @@ Funime.Components = (() => {
         const eps = anime.episodes || '?';
         const rating = anime.rating || '';
         const duration = anime.duration || '';
-        const genres = (anime.genres || []).map(g => g.name);
-        const studios = (anime.studios || []).map(s => s.name).join(', ');
+        const genres = (anime.genres || []).map(g => typeof g === 'string' ? g : g.name);
+        const studios = (anime.studios || []).map(s => typeof s === 'string' ? s : s.name).join(', ');
         const syn = anime.synopsis || 'No synopsis available.';
         const img = Funime.API.getImage(anime);
 
         return `
-        <!-- Banner -->
         <div class="relative h-[45vh] sm:h-[55vh] overflow-hidden">
             <img src="${img}" class="w-full h-full object-cover object-center" alt="">
             <div class="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/20"></div>
             <div class="absolute inset-0 bg-gradient-to-r from-bg via-bg/50 to-transparent"></div>
         </div>
-        <!-- Detail Content -->
         <div class="max-w-[1400px] mx-auto px-4 sm:px-6 -mt-40 relative z-10 pb-16">
             <div class="flex flex-col md:flex-row gap-6 sm:gap-8">
                 <div class="flex-shrink-0">
@@ -171,54 +150,39 @@ Funime.Components = (() => {
                     </button>
                 </div>
             </div>
-            <!-- Episodes Section -->
             <div class="mt-10">
                 <h2 class="font-display font-bold text-xl mb-4 flex items-center gap-2">
                     <i class="fa-solid fa-list text-accent text-lg"></i> Episodes
                 </h2>
                 <div id="epContainer">
-                    <p class="text-muted py-4">Loading episodes...</p>
+                    <div class="flex items-center gap-3 py-4">
+                        <i class="fa-solid fa-circle-notch fa-spin text-accent"></i>
+                        <span class="text-sm text-white/60">Finding streaming source...</span>
+                    </div>
                 </div>
             </div>
         </div>`;
     }
 
-    /**
-     * Render episode grid buttons
-     */
     function episodeGridHTML(episodes) {
-        if (!episodes.length) {
-            return '<p class="text-muted py-4">No episodes available.</p>';
-        }
-
+        if (!episodes.length) return '<p class="text-muted py-4">No episodes available.</p>';
         const showCount = Math.min(episodes.length, 24);
-
         const buttons = episodes.slice(0, showCount).map((ep, i) => `
             <button onclick="Funime.Player.playEpisode(${i})"
                 class="py-2.5 px-2 bg-surface border border-accent/15 rounded-lg text-sm font-semibold hover:bg-accent/30 hover:border-accent/50 transition-all text-center">
                 ${ep.number}
             </button>
         `).join('');
-
         const showMore = episodes.length > showCount
             ? `<button onclick="Funime.Components.showAllEpisodes()" class="mt-3 text-sm text-accent-light hover:text-white transition-colors">Show all ${episodes.length} episodes <i class="fa-solid fa-chevron-down ml-1"></i></button>`
             : '';
-
-        return `
-        <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2" id="epGrid">
-            ${buttons}
-        </div>
-        ${showMore}`;
+        return `<div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2" id="epGrid">${buttons}</div>${showMore}`;
     }
 
-    /**
-     * Show all episodes (expand beyond initial 24)
-     */
     function showAllEpisodes() {
         const episodes = Funime.Router.getState().episodes;
         const el = document.getElementById('epGrid');
         if (!el || !episodes.length) return;
-
         el.innerHTML = episodes.map((ep, i) => `
             <button onclick="Funime.Player.playEpisode(${i})"
                 class="py-2.5 px-2 bg-surface border border-accent/15 rounded-lg text-sm font-semibold hover:bg-accent/30 hover:border-accent/50 transition-all text-center">
@@ -228,14 +192,8 @@ Funime.Components = (() => {
     }
 
     return {
-        animeCardHTML,
-        skeletonCards,
-        rowHTML,
-        scrollRow,
-        heroHTML,
-        detailHTML,
-        episodeGridHTML,
-        showAllEpisodes
+        animeCardHTML, skeletonCards, rowHTML, scrollRow,
+        heroHTML, detailHTML, episodeGridHTML, showAllEpisodes
     };
 
 })();
