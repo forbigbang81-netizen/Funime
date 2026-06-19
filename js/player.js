@@ -10,14 +10,8 @@ Funime.Player = (() => {
     let currentHeaders = {};
     let hideTimer = null;
 
-    /**
-     * Helper: get DOM element by id
-     */
     function $(id) { return document.getElementById(id); }
 
-    /**
-     * Helper: format seconds to m:ss
-     */
     function formatTime(s) {
         if (!s || isNaN(s)) return '0:00';
         const m = Math.floor(s / 60);
@@ -25,19 +19,15 @@ Funime.Player = (() => {
         return `${m}:${sec.toString().padStart(2, '0')}`;
     }
 
-    /**
-     * Play a specific episode by index
-     */
     async function playEpisode(index) {
         const state = Funime.Router.getState();
         if (index < 0 || index >= state.episodes.length) return;
 
-        Funime.Router.getState().currentEpIndex = index;
+        state.currentEpIndex = index;
         const ep = state.episodes[index];
         const video = $('videoPlayer');
         const overlay = $('playerOverlay');
 
-        // Show player UI
         overlay.classList.remove('hidden');
         $('playerLoader').classList.remove('hidden');
         $('centerPlayBtn').classList.add('hidden');
@@ -45,27 +35,22 @@ Funime.Player = (() => {
         $('playerTitle').textContent = state.currentAnimeDetail?.title_english || state.currentAnimeDetail?.title || '';
         $('playerEpTitle').textContent = `Episode ${ep.number}`;
 
-        // Update episode panel
         renderPlayerEpisodeList();
 
-        // Destroy previous HLS instance
         if (hls) { hls.destroy(); hls = null; }
 
-        // Fetch stream data
         const streamData = await Funime.API.getStreamUrl(ep.id);
         if (!streamData) {
             $('playerLoader').classList.add('hidden');
-            Funime.Router.showToast('Failed to load stream. Try again.', 'error');
+            Funime.Router.showToast('Failed to load stream. The Consumet API may be down.', 'error');
             return;
         }
 
-        // Populate quality selector
         const qs = $('qualitySelect');
         qs.innerHTML = streamData.sources.map((s, i) =>
             `<option value="${i}">${s.quality || 'Auto'}</option>`
         ).join('');
 
-        // Pick best quality
         let source = streamData.sources.find(s => s.quality === '1080p' && s.isM3U8)
             || streamData.sources.find(s => s.quality === '720p' && s.isM3U8)
             || streamData.sources.find(s => s.isM3U8)
@@ -74,20 +59,14 @@ Funime.Player = (() => {
         const srcIdx = streamData.sources.indexOf(source);
         if (srcIdx >= 0) qs.value = srcIdx;
 
-        // Store for quality switching
         currentSources = streamData.sources;
         currentHeaders = streamData.headers;
 
-        // Play via HLS or native
         loadSource(source, video);
-
         setupPlayerEvents();
         saveToHistory(ep.number);
     }
 
-    /**
-     * Load a source URL into the video element
-     */
     function loadSource(source, video) {
         if (source.isM3U8 && Hls.isSupported()) {
             hls = new Hls({
@@ -110,92 +89,57 @@ Funime.Player = (() => {
                 }
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Safari native HLS
             video.src = source.url;
             video.play().catch(() => $('centerPlayBtn').classList.remove('hidden'));
             $('playerLoader').classList.add('hidden');
         } else {
-            // Direct URL fallback
             video.src = source.url;
             video.play().catch(() => $('centerPlayBtn').classList.remove('hidden'));
             $('playerLoader').classList.add('hidden');
         }
     }
 
-    /**
-     * Switch quality during playback
-     */
     function changeQuality(idx) {
         const source = currentSources?.[idx];
         if (!source) return;
         const video = $('videoPlayer');
         const currentTime = video.currentTime;
-
         if (hls) { hls.destroy(); hls = null; }
-
         loadSource(source, video);
-        // Restore position after a short delay
         setTimeout(() => { video.currentTime = currentTime; }, 500);
     }
 
-    /**
-     * Toggle play / pause
-     */
     function togglePlay() {
         const v = $('videoPlayer');
-        if (v.paused) { v.play().catch(() => {}); }
-        else { v.pause(); }
+        if (v.paused) v.play().catch(() => {});
+        else v.pause();
     }
 
-    /**
-     * Seek to a position (0-100 percent)
-     */
     function seekTo(val) {
         const v = $('videoPlayer');
         v.currentTime = (val / 100) * (v.duration || 0);
     }
 
-    /**
-     * Set volume (0-1)
-     */
     function setVolume(val) {
         $('videoPlayer').volume = val;
         updateVolIcon(val);
     }
 
-    /**
-     * Toggle mute
-     */
     function toggleMute() {
         const v = $('videoPlayer');
         v.muted = !v.muted;
         updateVolIcon(v.muted ? 0 : v.volume);
     }
 
-    /**
-     * Update volume icon based on level
-     */
     function updateVolIcon(vol) {
         const i = $('volIcon');
-        if (vol === 0 || $('videoPlayer').muted) {
-            i.className = 'fa-solid fa-volume-xmark text-lg';
-        } else if (vol < 0.5) {
-            i.className = 'fa-solid fa-volume-low text-lg';
-        } else {
-            i.className = 'fa-solid fa-volume-high text-lg';
-        }
+        if (vol === 0 || $('videoPlayer').muted) i.className = 'fa-solid fa-volume-xmark text-lg';
+        else if (vol < 0.5) i.className = 'fa-solid fa-volume-low text-lg';
+        else i.className = 'fa-solid fa-volume-high text-lg';
     }
 
-    /**
-     * Skip 85 seconds (skip intro)
-     */
-    function skipIntro() {
-        $('videoPlayer').currentTime += 85;
-    }
+    function skipIntro() { $('videoPlayer').currentTime += 85; }
 
-    /**
-     * Toggle fullscreen mode
-     */
     function toggleFullscreen() {
         if (document.fullscreenElement) {
             document.exitFullscreen();
@@ -206,14 +150,10 @@ Funime.Player = (() => {
         }
     }
 
-    /**
-     * Toggle episode panel sidebar
-     */
     function toggleEpisodePanel() {
         const panel = $('episodePanel');
         const isHidden = panel.classList.contains('hidden')
             || panel.style.transform === 'translateX(100%)';
-
         if (isHidden) {
             panel.classList.remove('hidden');
             requestAnimationFrame(() => { panel.style.transform = 'translateX(0)'; });
@@ -223,33 +163,18 @@ Funime.Player = (() => {
         }
     }
 
-    /**
-     * Go to previous episode
-     */
     function prevEpisode() {
         const state = Funime.Router.getState();
-        if (state.currentEpIndex > 0) {
-            playEpisode(state.currentEpIndex - 1);
-        } else {
-            Funime.Router.showToast('This is the first episode', 'info');
-        }
+        if (state.currentEpIndex > 0) playEpisode(state.currentEpIndex - 1);
+        else Funime.Router.showToast('This is the first episode', 'info');
     }
 
-    /**
-     * Go to next episode
-     */
     function nextEpisode() {
         const state = Funime.Router.getState();
-        if (state.currentEpIndex < state.episodes.length - 1) {
-            playEpisode(state.currentEpIndex + 1);
-        } else {
-            Funime.Router.showToast('No more episodes', 'info');
-        }
+        if (state.currentEpIndex < state.episodes.length - 1) playEpisode(state.currentEpIndex + 1);
+        else Funime.Router.showToast('No more episodes', 'info');
     }
 
-    /**
-     * Render episode list inside player sidebar
-     */
     function renderPlayerEpisodeList() {
         const state = Funime.Router.getState();
         const el = $('episodeList');
@@ -264,9 +189,6 @@ Funime.Player = (() => {
         `).join('');
     }
 
-    /**
-     * Exit player and clean up
-     */
     function exitPlayer() {
         const v = $('videoPlayer');
         v.pause();
@@ -277,20 +199,14 @@ Funime.Player = (() => {
         document.onkeydown = null;
     }
 
-    /**
-     * Set up video event listeners and auto-hide controls
-     */
     function setupPlayerEvents() {
         const video = $('videoPlayer');
         const wrapper = $('playerWrapper');
 
-        // Time update
         video.ontimeupdate = () => {
             $('progressBar').value = (video.currentTime / video.duration) * 100 || 0;
             $('currentTime').textContent = formatTime(video.currentTime);
             $('duration').textContent = formatTime(video.duration);
-
-            // Skip intro button visibility (5s to 90s)
             if (video.currentTime > 5 && video.currentTime < 90) {
                 $('skipIntroBtn').classList.remove('hidden');
             } else {
@@ -305,11 +221,8 @@ Funime.Player = (() => {
         video.onpause = () => {
             $('playPauseIcon').className = 'fa-solid fa-play text-white text-sm ml-0.5';
         };
-        video.onended = () => {
-            nextEpisode();
-        };
+        video.onended = () => nextEpisode();
 
-        // Auto-hide cursor and controls
         const resetHide = () => {
             wrapper.classList.remove('player-hide-cursor');
             clearTimeout(hideTimer);
@@ -326,13 +239,8 @@ Funime.Player = (() => {
             }
         };
 
-        // Double-click for fullscreen
-        video.ondblclick = (e) => {
-            e.preventDefault();
-            toggleFullscreen();
-        };
+        video.ondblclick = (e) => { e.preventDefault(); toggleFullscreen(); };
 
-        // Keyboard shortcuts
         document.onkeydown = (e) => {
             if ($('playerOverlay').classList.contains('hidden')) return;
             switch (e.key) {
@@ -351,13 +259,9 @@ Funime.Player = (() => {
         };
     }
 
-    /**
-     * Save watch progress to localStorage
-     */
     function saveToHistory(epNum) {
         const anime = Funime.Router.getState().currentAnimeDetail;
         if (!anime) return;
-
         const entry = {
             malId: anime.mal_id,
             title: anime.title_english || anime.title,
@@ -365,7 +269,6 @@ Funime.Player = (() => {
             episode: epNum,
             timestamp: Date.now()
         };
-
         let history = JSON.parse(localStorage.getItem('funime_history') || '[]');
         history = history.filter(h => h.malId !== entry.malId);
         history.unshift(entry);
@@ -374,18 +277,9 @@ Funime.Player = (() => {
     }
 
     return {
-        playEpisode,
-        changeQuality,
-        togglePlay,
-        seekTo,
-        setVolume,
-        toggleMute,
-        skipIntro,
-        toggleFullscreen,
-        toggleEpisodePanel,
-        prevEpisode,
-        nextEpisode,
-        exitPlayer
+        playEpisode, changeQuality, togglePlay, seekTo,
+        setVolume, toggleMute, skipIntro, toggleFullscreen,
+        toggleEpisodePanel, prevEpisode, nextEpisode, exitPlayer
     };
 
 })();
